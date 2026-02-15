@@ -22,14 +22,9 @@ export function UploadZone({ platform, analysisFocus }: UploadZoneProps) {
   const router = useRouter();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (type === 'tactical_scan') {
-      setFiles(acceptedFiles.slice(0, 1));
-    } else {
-      // Both 'mri' and 'analysis' allow multiple files
-      setFiles(prev => [...prev, ...acceptedFiles].slice(0, 100));
-    }
+    setFiles(prev => [...prev, ...acceptedFiles].slice(0, 100));
     setError(null);
-  }, [type]);
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -41,7 +36,7 @@ export function UploadZone({ platform, analysisFocus }: UploadZoneProps) {
       'application/json': ['.json'],
     },
     maxSize: 500 * 1024 * 1024,
-    maxFiles: type === 'tactical_scan' ? 1 : 100, // analysis and mri allow 100 files
+    maxFiles: 100,
   });
 
   const removeFile = (index: number) => {
@@ -107,26 +102,12 @@ export function UploadZone({ platform, analysisFocus }: UploadZoneProps) {
 
       setProcessingStage('Uploading securely...');
 
-      // Step 2: Upload processed (masked) files
-      if (type === 'mri') {
-        const result = await api.uploadMRI(processedFiles, encryptedIdentityMap);
-        setCaseId(result.case_id);
-        // Store encryption key locally for later report decryption
-        await encryptionManager.storeKeyLocally(result.case_id);
-        router.push(`/checkout?product=mri&case_id=${result.case_id}`);
-      } else if (type === 'analysis') {
-        // Free analysis with platform and focus metadata
-        const result = await api.uploadAnalysis(processedFiles, encryptedIdentityMap, platform, analysisFocus);
-        setCaseId(result.case_id);
-        await encryptionManager.storeKeyLocally(result.case_id);
-        router.push(`/analysis/${result.case_id}`);
-      } else {
-        // tactical_scan (deprecated but kept for backward compatibility)
-        const result = await api.uploadTacticalScan(processedFiles[0], encryptedIdentityMap);
-        setCaseId(result.case_id);
-        await encryptionManager.storeKeyLocally(result.case_id);
-        router.push(`/analysis/${result.case_id}`);
-      }
+      // Step 2: Upload processed (masked) files — creates conversation + free analysis
+      const result = await api.uploadAnalysis(processedFiles, encryptedIdentityMap, platform);
+      setCaseId(result.case_id);
+      await encryptionManager.storeKeyLocally(result.case_id);
+      // Redirect to conversation view (tabbed interface)
+      router.push(`/conversation/${result.conversation_id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed. Please sign in first.');
     } finally {
@@ -160,9 +141,7 @@ export function UploadZone({ platform, analysisFocus }: UploadZoneProps) {
                 <span className="font-medium text-gray-900">Click to upload</span> or drag and drop
               </p>
               <p className="text-sm text-gray-400">
-                {type === 'tactical_scan'
-                  ? 'Screenshot or text file (max 10MB)'
-                  : 'Chat exports, screenshots, text files (up to 100 files, 500MB total)'}
+                Chat exports, screenshots, text files (up to 100 files, 500MB total)
               </p>
               <p className="text-xs text-gray-400">
                 PNG, JPG, TXT, CSV, ZIP, JSON supported
@@ -225,11 +204,7 @@ export function UploadZone({ platform, analysisFocus }: UploadZoneProps) {
             {processingStage || 'Processing...'}
           </span>
         ) : (
-          type === 'mri'
-            ? 'Continue to Payment — $49'
-            : type === 'analysis'
-              ? 'Start Free Analysis'
-              : 'Analyze for Red Flags'
+          'Start Free Analysis'
         )}
       </button>
 

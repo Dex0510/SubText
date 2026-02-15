@@ -40,7 +40,11 @@ export function AnalysisProgress({ caseId }: AnalysisProgressProps) {
 
         if (data.status === 'completed') {
           clearInterval(interval);
-          setTimeout(() => router.push(`/report/${caseId}`), 1500);
+          // Redirect to conversation page if we have a conversation_id, otherwise report
+          const target = data.conversation_id
+            ? `/conversation/${data.conversation_id}`
+            : `/report/${caseId}`;
+          setTimeout(() => router.push(target), 1500);
         } else if (data.status === 'failed') {
           clearInterval(interval);
           setError('Analysis failed. Please try again.');

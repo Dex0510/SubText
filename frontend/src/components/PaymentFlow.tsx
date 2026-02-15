@@ -15,8 +15,8 @@ const stripePromise = loadStripe(
 );
 
 interface PaymentFlowProps {
-  productType: string;
-  caseId?: string;
+  productType: 'pro_features' | 'mri_unlimited';
+  conversationId: string;
   onSuccess: (paymentIntentId: string) => void;
   onCancel: () => void;
 }
@@ -98,7 +98,7 @@ function CheckoutForm({ onSuccess, onCancel }: { onSuccess: (id: string) => void
   );
 }
 
-export function PaymentFlow({ productType, caseId, onSuccess, onCancel }: PaymentFlowProps) {
+export function PaymentFlow({ productType, conversationId, onSuccess, onCancel }: PaymentFlowProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [amount, setAmount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -107,7 +107,7 @@ export function PaymentFlow({ productType, caseId, onSuccess, onCancel }: Paymen
   useEffect(() => {
     const createIntent = async () => {
       try {
-        const data = await api.createPaymentIntent(productType, caseId);
+        const data = await api.createPaymentIntent(productType, conversationId);
         setClientSecret(data.client_secret);
         setAmount(data.amount);
       } catch (err) {
@@ -117,7 +117,7 @@ export function PaymentFlow({ productType, caseId, onSuccess, onCancel }: Paymen
       }
     };
     createIntent();
-  }, [productType]);
+  }, [productType, conversationId]);
 
   if (loading) {
     return (
@@ -147,11 +147,8 @@ export function PaymentFlow({ productType, caseId, onSuccess, onCancel }: Paymen
   if (!clientSecret) return null;
 
   const productLabels: Record<string, string> = {
-    mri: 'Relationship MRI',
-    mri_expedited: 'Relationship MRI (Expedited)',
-    tactical_scan_pro: 'Tactical Scan Pro',
-    voice_addon: 'Voice Analysis Add-on',
-    comparative_addon: 'Comparative Analysis Add-on',
+    pro_features: 'Pro Features',
+    mri_unlimited: 'MRI Unlimited',
   };
 
   return (
@@ -159,7 +156,7 @@ export function PaymentFlow({ productType, caseId, onSuccess, onCancel }: Paymen
       <div className="bg-gray-50 rounded-xl p-4 flex items-center justify-between">
         <div>
           <p className="font-medium text-gray-900">{productLabels[productType] || productType}</p>
-          <p className="text-sm text-gray-500">One-time payment</p>
+          <p className="text-sm text-gray-500">Per-conversation purchase</p>
         </div>
         <span className="text-2xl font-bold text-gray-900">
           ${(amount / 100).toFixed(2)}
